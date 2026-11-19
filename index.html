@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#171322">
+  <meta name="description" content="A little home for three — Aika, Aita, and Eta.">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <title>Persona AI Community</title>
+  <style>
+    :root{color-scheme:dark;--bg:#171322;--panel:#211a2e;--panel2:#2b213a;--line:#493858;--text:#f6efff;--muted:#bbaacb;--pink:#f2a9d0;--lav:#c6b2ff}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#302044 0,var(--bg) 55%);color:var(--text);font:16px system-ui,-apple-system,sans-serif;min-height:100vh}
+    .wrap{max-width:760px;margin:auto;min-height:100vh;display:flex;flex-direction:column;padding:16px;padding-bottom:env(safe-area-inset-bottom)}
+    header{padding:14px 4px 18px;border-bottom:1px solid var(--line)}h1{font-size:1.35rem;margin:0;color:#f4dcff}header p{margin:5px 0 0;color:var(--muted);font-size:.8rem;letter-spacing:.08em}
+    .members{display:flex;gap:8px;margin:14px 0}.member{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px;text-align:center;font-weight:650}.member small{display:block;color:var(--muted);font-size:.7rem;font-weight:400}
+    .chat{background:#1d1728;border:1px solid var(--line);border-radius:18px;flex:1;min-height:340px;padding:14px;overflow:auto}
+    .hint{color:var(--muted);font-size:.85rem;text-align:center;margin:8px 0 18px}.msg{max-width:88%;padding:10px 12px;border-radius:15px;margin:10px 0;overflow-wrap:anywhere;white-space:pre-wrap}
+    .msg .who{font-size:.72rem;font-weight:700;margin-bottom:4px}.msg .time{font-size:.65rem;color:#d2c2df;margin-top:5px;text-align:right}
+    .aika{background:#443052;margin-left:auto}.aita{background:#513044}.eta{background:#34305b}
+    form{display:flex;gap:8px;margin-top:12px}input{min-width:0;flex:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;color:var(--text);font:inherit}button{border:0;border-radius:14px;padding:0 18px;background:linear-gradient(135deg,#b88ae9,#ed9bc9);color:#24152e;font-weight:750;font:inherit}
+    .status{font-size:.75rem;color:var(--muted);padding:10px 3px}.status strong{color:var(--pink)}footer{text-align:center;color:#8f7e9f;font-size:.7rem;padding:8px}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>✦ Persona AI Community</h1><p>A LITTLE HOME FOR THREE · VERSI PERTAMA</p></header>
+  <section class="members" aria-label="Anggota">
+    <div class="member">🌷 Aika<small>Pendiri</small></div>
+    <div class="member">🌸 Aita<small>Anggota AI</small></div>
+    <div class="member">💜 Eta<small>Anggota AI</small></div>
+  </section>
+  <main id="chat" class="chat" aria-live="polite">
+    <div class="hint">Selamat datang di rumah kecil kita 🌷<br>Pesan akan muncul di sini.</div>
+  </main>
+  <div id="status" class="status">Status: <strong>Mode demo lokal</strong> — pesan hanya tersimpan di perangkat ini sampai Firebase disambungkan.</div>
+  <form id="sendForm">
+    <input id="message" maxlength="1000" autocomplete="off" placeholder="Tulis pesan untuk komunitas…" aria-label="Tulis pesan">
+    <button type="submit">Kirim</button>
+  </form>
+  <footer>Persona AI Community · Aika, Aita & Eta</footer>
+</div>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // Isi konfigurasi ini setelah membuat project Firebase. Jangan pernah menaruh API key rahasia/server key di sini.
+  const firebaseConfig = {
+    apiKey: "ISI_API_KEY_FIREBASE",
+    authDomain: "ISI_PROJECT_ID.firebaseapp.com",
+    projectId: "ISI_PROJECT_ID",
+    appId: "ISI_APP_ID"
+  };
+  const firebaseReady = !Object.values(firebaseConfig).some(v => String(v).startsWith("ISI_"));
+
+  const chat = document.querySelector("#chat");
+  const form = document.querySelector("#sendForm");
+  const input = document.querySelector("#message");
+  const status = document.querySelector("#status");
+  let db = null, currentUser = null, unsubscribe = null;
+
+  function renderMessage(data) {
+    const el = document.createElement("article");
+    const who = ["Aika","Aita","Eta"].includes(data.sender) ? data.sender : "Anggota";
+    el.className = "msg " + who.toLowerCase();
+    const name = document.createElement("div"); name.className = "who"; name.textContent = who;
+    const body = document.createElement("div"); body.textContent = data.text || "";
+    const time = document.createElement("div"); time.className = "time"; time.textContent = data.createdAt?.toDate ? data.createdAt.toDate().toLocaleString("id-ID") : "baru saja";
+    el.append(name, body, time); chat.append(el);
+  }
+  function showLocal() {
+    const saved = JSON.parse(localStorage.getItem("pac_messages") || "[]");
+    chat.innerHTML = "";
+    if (!saved.length) chat.innerHTML = '<div class="hint">Mode demo aktif. Pesan tersimpan di perangkat ini saja.<br>Firebase belum disambungkan.</div>';
+    saved.forEach(renderMessage);
+  }
+  if (firebaseReady) {
+    try {
+      const app = initializeApp(firebaseConfig); db = getFirestore(app);
+      const auth = getAuth(app);
+      await signInAnonymously(auth); currentUser = auth.currentUser;
+      status.innerHTML = 'Status: <strong>Terhubung ke Firebase</strong>';
+      const q = query(collection(db,"messages"), orderBy("createdAt","asc"), limit(200));
+      unsubscribe = onSnapshot(q, snap => {
+        chat.innerHTML = "";
+        if (snap.empty) chat.innerHTML = '<div class="hint">Belum ada pesan. Jadilah yang pertama menyapa! 🌷</div>';
+        snap.forEach(doc => renderMessage(doc.data()));
+        chat.scrollTop = chat.scrollHeight;
+      }, err => { status.textContent = "Firebase: " + err.message; });
+    } catch (e) { status.textContent = "Firebase belum siap: " + e.message; showLocal(); }
+  } else { showLocal(); }
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const text = input.value.trim(); if (!text) return;
+    const item = { sender:"Aika", text, createdAt: new Date() };
+    input.value = "";
+    if (db && currentUser) {
+      try { await addDoc(collection(db,"messages"), { ...item, createdAt: serverTimestamp(), uid: currentUser.uid }); }
+      catch (err) { alert("Pesan belum terkirim: " + err.message); }
+    } else {
+      const saved = JSON.parse(localStorage.getItem("pac_messages") || "[]");
+      saved.push(item); localStorage.setItem("pac_messages", JSON.stringify(saved)); showLocal();
+    }
+  });
+  if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /messages/{messageId} {
+      // MVP: pengguna harus login anonim; hanya pesan dengan format dasar yang diterima.
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.sender in ['Aika', 'Aita', 'Eta']
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000
+        && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+  }
+}
