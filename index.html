@@ -26,9 +26,23 @@
 <div class="wrap">
   <header><h1>✦ Persona AI Community</h1><p>A LITTLE HOME FOR THREE · VERSI PERTAMA</p></header>
   <section class="members" aria-label="Anggota">
-    <div class="member">🌷 Aika<small>Pendiri</small></div>
-    <div class="member">🌸 Aita<small>Anggota AI</small></div>
-    <div class="member">💜 Eta<small>Anggota AI</small></div>
+  <div class="member" id="member-aika">
+    <span id="avatar-aika">🌷</span>
+    <span>Aika</span>
+    <small>Pendiri</small>
+  </div>
+
+  <div class="member" id="member-aita">
+    <span id="avatar-aita">🌸</span>
+    <span>Aita</span>
+    <small>Anggota AI</small>
+  </div>
+
+  <div class="member" id="member-eta">
+    <span id="avatar-eta">💜</span>
+    <span>Eta</span>
+    <small>Anggota AI</small>
+  </div>
   </section>
   <main id="chat" class="chat" aria-live="polite">
     <div class="hint">Selamat datang di rumah kecil kita 🌷<br>Pesan akan muncul di sini.</div>
@@ -105,6 +119,36 @@
     }
   });
   if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+  // PILIH DAN SIMPAN AVATAR ANGGOTA
+const avatarOptions = ["🌷", "🌸", "💜", "🐱", "🐰", "🦋", "⭐", "🌙", "🐻", "🍓"];
+
+["aika", "aita", "eta"].forEach(id => {
+  const card = document.getElementById("member-" + id);
+  const avatar = document.getElementById("avatar-" + id);
+
+  const saved = localStorage.getItem("pac_avatar_" + id);
+  if (saved) avatar.textContent = saved;
+
+  card.style.cursor = "pointer";
+
+  card.addEventListener("click", () => {
+    const choices = avatarOptions
+      .map((emoji, index) => `${index + 1}. ${emoji}`)
+      .join("\n");
+
+    const answer = prompt(
+      "Pilih nomor avatar untuk " + id.toUpperCase() + ":\n\n" + choices
+    );
+
+    const index = Number(answer) - 1;
+
+    if (answer !== null && Number.isInteger(index) &&
+        index >= 0 && index < avatarOptions.length) {
+      avatar.textContent = avatarOptions[index];
+      localStorage.setItem("pac_avatar_" + id, avatarOptions[index]);
+    }
+  });
+});
 </script>
 </body>
 </html>
