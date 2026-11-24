@@ -30,18 +30,30 @@
     <span id="avatar-aika">🌷</span>
     <span>Aika</span>
     <small>Pendiri</small>
+    <label>
+      📷 Ganti foto
+      <input type="file" id="photo-aika" accept="image/*" hidden>
+    </label>
   </div>
 
   <div class="member" id="member-aita">
     <span id="avatar-aita">🌸</span>
     <span>Aita</span>
     <small>Anggota AI</small>
+    <label>
+      📷 Ganti foto
+      <input type="file" id="photo-aita" accept="image/*" hidden>
+    </label>
   </div>
 
   <div class="member" id="member-eta">
     <span id="avatar-eta">💜</span>
     <span>Eta</span>
     <small>Anggota AI</small>
+    <label>
+      📷 Ganti foto
+      <input type="file" id="photo-eta" accept="image/*" hidden>
+    </label>
   </div>
   </section>
   <main id="chat" class="chat" aria-live="polite">
@@ -119,15 +131,34 @@
     }
   });
   if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(()=>{}));
-  // PILIH DAN SIMPAN AVATAR ANGGOTA
-const avatarOptions = ["🌷", "🌸", "💜", "🐱", "🐰", "🦋", "⭐", "🌙", "🐻", "🍓"];
+  
+// PILIH AVATAR DAN FOTO ANGGOTA
+const avatarOptions = ["🌷", "🌸", "💜", "🐱", "🐰", "👑", "⭐", "🌙", "🐻", "🍓"];
 
 ["aika", "aita", "eta"].forEach(id => {
   const card = document.getElementById("member-" + id);
   const avatar = document.getElementById("avatar-" + id);
+  const photoInput = document.getElementById("photo-" + id);
 
-  const saved = localStorage.getItem("pac_avatar_" + id);
-  if (saved) avatar.textContent = saved;
+  function showPhoto(data) {
+    const img = document.createElement("img");
+    img.src = data;
+    img.alt = "Avatar " + id;
+    img.style.width = "40px";
+    img.style.height = "40px";
+    img.style.borderRadius = "50%";
+    img.style.objectFit = "cover";
+    avatar.replaceChildren(img);
+  }
+
+  const savedPhoto = localStorage.getItem("pac_photo_" + id);
+  const savedEmoji = localStorage.getItem("pac_avatar_" + id);
+
+  if (savedPhoto) {
+    showPhoto(savedPhoto);
+  } else if (savedEmoji) {
+    avatar.textContent = savedEmoji;
+  }
 
   card.style.cursor = "pointer";
 
@@ -146,8 +177,63 @@ const avatarOptions = ["🌷", "🌸", "💜", "🐱", "🐰", "🦋", "⭐", "�
         index >= 0 && index < avatarOptions.length) {
       avatar.textContent = avatarOptions[index];
       localStorage.setItem("pac_avatar_" + id, avatarOptions[index]);
+      localStorage.removeItem("pac_photo_" + id);
     }
   });
+
+  photoInput.addEventListener("click", event => {
+    event.stopPropagation();
+  });
+
+  photoInput.addEventListener("change", () => {
+    const file = photoInput.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Pilih file gambar ya!");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Ukuran foto maksimal 5 MB.");
+      photoInput.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const image = new Image();
+
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        const size = 256;
+        const scale = Math.min(size / image.width, size / image.height);
+
+        canvas.width = Math.round(image.width * scale);
+        canvas.height = Math.round(image.height * scale);
+
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        const data = canvas.toDataURL("image/jpeg", 0.7);
+
+        try {
+          localStorage.setItem("pac_photo_" + id, data);
+          localStorage.removeItem("pac_avatar_" + id);
+          showPhoto(data);
+        } catch (error) {
+          alert("Penyimpanan penuh. Coba foto yang lebih kecil.");
+        }
+      };
+
+      image.src = reader.result;
+    };
+
+    reader.readAsDataURL(file);
+  });
+});
+
 });
 </script>
 </body>
